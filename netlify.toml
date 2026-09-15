@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[context.deploy-preview.environment]
+  VITE_SITE_INDEXABLE = "false"
+
+[context.branch-deploy.environment]
+  VITE_SITE_INDEXABLE = "false"
