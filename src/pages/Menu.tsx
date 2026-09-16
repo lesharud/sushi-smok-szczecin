@@ -109,8 +109,8 @@ export function MenuPage() {
           />
         )}
         <p className="catalog-source">
-          Menu i ceny na podstawie oferty Sushi Smok na Wolt z 14.09.2026.
-          Dostępność i ceny mogą się zmienić. Informacje o alergenach:{" "}
+          Dostępność i ceny aktualizujemy na bieżąco. Ostateczną cenę sprawdzamy
+          podczas wysyłania zamówienia. Informacje o alergenach:{" "}
           <a href={restaurant.phoneHref}>{restaurant.phone}</a>.
         </p>
       </div>
@@ -170,8 +170,8 @@ export function ProductPage() {
               </button>
             </div>
             <p className="fine-print">
-              Podana cena pochodzi z menu Wolt. Aktualną cenę i dostępność
-              sprawdzamy podczas wysyłania zamówienia.
+              Aktualną cenę i dostępność sprawdzamy podczas wysyłania
+              zamówienia.
             </p>
           </div>
         </div>

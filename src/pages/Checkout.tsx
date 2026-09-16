@@ -53,6 +53,9 @@ export default function CheckoutPage() {
       sum + (productById.get(line.productId)?.priceGrosz || 0) * line.quantity,
     0,
   );
+  const unavailable = activeLines.some(
+    (line) => !productById.get(line.productId)?.available,
+  );
   const deliveryFee = fulfillment === "pickup" ? 0 : settings?.deliveryFeeGrosz;
   const loadSettings = () => {
     setSettingsError("");
@@ -133,6 +136,12 @@ export default function CheckoutPage() {
     event.preventDefault();
     if (lock.current) return;
     if (!pendingAttempt()) {
+      if (unavailable) {
+        setFailure(
+          "Niektóre dania są niedostępne. Wróć do koszyka i usuń je przed zamówieniem.",
+        );
+        return;
+      }
       const next: Record<string, string> = {};
       if (fields.name.trim().length < 2 || !/\p{L}/u.test(fields.name))
         next.name = "Podaj swoje imię.";
@@ -397,6 +406,13 @@ export default function CheckoutPage() {
                   kwotę zobaczysz w potwierdzeniu. Płatności online nie są
                   pobierane.
                 </p>
+                {unavailable && !retry && (
+                  <p role="alert" className="field-error">
+                    Niektóre dania są niedostępne.{" "}
+                    <Link to="/cart">Wróć do koszyka</Link> i usuń je przed
+                    zamówieniem.
+                  </p>
+                )}
                 {failure && (
                   <p role="alert" className="field-error">
                     {failure}
@@ -405,7 +421,10 @@ export default function CheckoutPage() {
                 <button
                   className="button button-primary"
                   type="submit"
-                  disabled={busy || (!retry && !settings?.orderingEnabled)}
+                  disabled={
+                    busy ||
+                    (!retry && (!settings?.orderingEnabled || unavailable))
+                  }
                 >
                   {busy
                     ? "Wysyłanie zamówienia…"

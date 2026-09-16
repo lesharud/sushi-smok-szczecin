@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { handle } from "./orders.js";
+import { catalog } from "./catalog.js";
 
 async function middleware(
   req: IncomingMessage,
@@ -14,7 +15,7 @@ async function middleware(
     "/api/order-receipt": "receipt",
     "/api/order-settings": "settings",
   }[path] as "create" | "receipt" | "settings" | undefined;
-  if (!action) {
+  if (!action && path !== "/api/catalog") {
     res.writeHead(404, { "Content-Type": "application/json" });
     res.end('{"error":{"code":"NOT_FOUND"}}');
     return;
@@ -42,7 +43,10 @@ async function middleware(
         ? { body: Buffer.concat(chunks) }
         : {}),
     });
-    const response = await handle(request, action);
+    const response =
+      path === "/api/catalog"
+        ? await catalog(request)
+        : await handle(request, action!);
     response.headers.forEach((value, name) => res.setHeader(name, value));
     res.statusCode = response.status;
     res.end(Buffer.from(await response.arrayBuffer()));

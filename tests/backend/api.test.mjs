@@ -178,7 +178,8 @@ test("API calls the real SDK RPC contract; private DB errors never reach the bro
     globalThis.fetch = async () =>
       Response.json(
         {
-          message: "secret database detail sb_secret_unit_test_sentinel_not_real",
+          message:
+            "secret database detail sb_secret_unit_test_sentinel_not_real",
           code: "XX000",
         },
         { status: 500 },
@@ -195,4 +196,78 @@ test("API calls the real SDK RPC contract; private DB errors never reach the bro
     if (oldLegacy) process.env.SUPABASE_SERVICE_ROLE_KEY = oldLegacy;
     else delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   }
+});
+
+test("public live catalog is GET-only and selects only public editable fields", async () => {
+  const { catalog } = await import("../../.server-test/server/catalog.js");
+  const previous = {
+    fetch: globalThis.fetch,
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_SECRET_KEY,
+  };
+  process.env.SUPABASE_URL = "https://unit-test.supabase.co";
+  process.env.SUPABASE_SECRET_KEY = "sb_secret_catalog_fixture_not_real";
+  try {
+    assert.equal(
+      (
+        await catalog(
+          new Request("https://shop.test/api/catalog", { method: "POST" }),
+        )
+      ).status,
+      405,
+    );
+    globalThis.fetch = async (input) => {
+      const url = new URL(String(input));
+      assert.equal(url.pathname, "/rest/v1/products");
+      assert.equal(
+        url.searchParams.get("select"),
+        "id,name,description,category_id,price_grosz,available",
+      );
+      return Response.json([
+        { id: "test", name: "Test", price_grosz: 1234, available: false },
+      ]);
+    };
+    const response = await catalog(
+      new Request("https://shop.test/api/catalog"),
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store, private");
+    assert.equal((await response.json()).products[0].available, false);
+  } finally {
+    globalThis.fetch = previous.fetch;
+    if (previous.url) process.env.SUPABASE_URL = previous.url;
+    else delete process.env.SUPABASE_URL;
+    if (previous.key) process.env.SUPABASE_SECRET_KEY = previous.key;
+    else delete process.env.SUPABASE_SECRET_KEY;
+  }
+});
+
+test("build guard rejects current and legacy server secrets in public environment variables", async () => {
+  const { assertPublicEnv } =
+    await import("../../.server-test/server/public-env.js");
+  assert.doesNotThrow(() =>
+    assertPublicEnv({
+      SUPABASE_SECRET_KEY: "sb_secret_not_real",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_not_real",
+    }),
+  );
+  assert.throws(
+    () => assertPublicEnv({ VITE_SUPABASE_SECRET_KEY: "not_real" }),
+    /Server credentials/,
+  );
+  assert.throws(
+    () =>
+      assertPublicEnv({ VITE_SUPABASE_PUBLISHABLE_KEY: "sb_secret_not_real" }),
+    /Server credentials/,
+  );
+  const token =
+    "e30." +
+    Buffer.from(JSON.stringify({ role: "service_role" })).toString(
+      "base64url",
+    ) +
+    ".fake";
+  assert.throws(
+    () => assertPublicEnv({ VITE_OLD_KEY: token }),
+    /Server credentials/,
+  );
 });

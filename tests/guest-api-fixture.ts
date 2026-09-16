@@ -2,13 +2,27 @@
 import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import type { Product } from "../src/shop/types";
-const catalog = JSON.parse(
+export const catalog = JSON.parse(
   readFileSync(new URL("../src/shop/catalog.json", import.meta.url), "utf8"),
 ) as { products: Product[] };
 export async function guestApiFixture(
   page: Page,
   options: { failOnce?: boolean; delivery?: boolean; delay?: number } = {},
 ) {
+  await page.route("**/api/catalog", (route) =>
+    route.fulfill({
+      json: {
+        products: catalog.products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          category_id: p.categoryId,
+          price_grosz: p.priceGrosz,
+          available: p.available,
+        })),
+      },
+    }),
+  );
   const requests: { key: string; token: string; body: Record<string, any> }[] =
     [];
   const orders = new Map<string, unknown>();

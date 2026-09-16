@@ -14,7 +14,8 @@
     "verify:order": "node scripts/verify-order.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:e2e": "playwright test",
-    "format": "prettier --write src scripts tests *.json *.ts *.html *.md"
+    "format": "prettier --write src scripts tests *.json *.ts *.html *.md",
+    "test:admin": "playwright test --config playwright.admin.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

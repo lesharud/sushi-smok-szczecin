@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { guestApiFixture } from "./guest-api-fixture";
+import { guestApiFixture, catalog } from "./guest-api-fixture";
 
 test("guest checkout validates, handles uncertain network retry, preserves key and clears cart only after server success", async ({
   page,
@@ -153,4 +153,48 @@ test("definitive server rejection leaves cart and input editable", async ({
         JSON.parse(localStorage.getItem("sushi-smok:cart:v1") || "[]").length,
     ),
   ).toBe(1);
+});
+
+test("live catalog updates prices and availability without redesign; unavailable cart cannot submit", async ({
+  page,
+}) => {
+  await guestApiFixture(page);
+  let unavailable = false;
+  await page.route("**/api/catalog", async (route) => {
+    await route.fulfill({
+      json: {
+        products: catalog.products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          category_id: p.categoryId,
+          price_grosz: p.id === "filadelfia-z-lososiem" ? 4250 : p.priceGrosz,
+          available:
+            p.id === "filadelfia-z-lososiem" ? !unavailable : p.available,
+        })),
+      },
+    });
+  });
+  await page.goto("/menu/danie/filadelfia-z-lososiem");
+  await expect(page.locator(".detail-meta strong")).toContainText("42,5");
+  await page
+    .locator(".detail-actions")
+    .getByRole("button", { name: /Dodaj do koszyka/ })
+    .click();
+  unavailable = true;
+  await page.goto("/cart");
+  await expect(page.locator("#main").getByText("Niedostępne — usuń z koszyka")).toBeVisible();
+  await page.goto("/checkout");
+  await expect(
+    page.getByRole("button", { name: "Potwierdź zamówienie", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole("alert")).toContainText(
+    "Niektóre dania są niedostępne",
+  );
+  await page.goto("/menu/danie/filadelfia-z-lososiem");
+  await expect(
+    page
+      .locator(".detail-actions")
+      .getByRole("button", { name: /Niedostępne/ }),
+  ).toBeDisabled();
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, lazy, Suspense } from "react";
 import {
   Routes,
   Route,
@@ -6,6 +6,7 @@ import {
   useNavigationType,
 } from "react-router-dom";
 import App from "./App";
+import { useLiveCatalog } from "./shop/liveCatalog";
 import Shell from "./shop/Shell";
 import { ShopProvider } from "./shop/ShopProvider";
 import { ShopFooter } from "./shop/components";
@@ -13,7 +14,9 @@ import { MenuPage, ProductPage, NotFound } from "./pages/Menu";
 import CartPage from "./pages/Cart";
 import CheckoutPage, { SuccessPage } from "./pages/Checkout";
 import { products, categories } from "./shop/catalog";
+const Admin = lazy(() => import("./admin/Admin"));
 export function pageTitle(path: string) {
+  if (path.startsWith("/admin")) return "Panel restauracji | Sushi Smok";
   if (path === "/") return "Sushi Smok — sushi z charakterem | Szczecin";
   const product = products.find((p) => path === `/menu/danie/${p.slug}`);
   const cat = categories.find((c) => path === `/menu/kategoria/${c.id}`);
@@ -78,10 +81,46 @@ function RouteEffects() {
 }
 export default function Root() {
   const { pathname } = useLocation();
+  const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
+  const catalogError = useLiveCatalog(!isAdmin);
+  if (isAdmin)
+    return (
+      <>
+        <RouteEffects />
+        <Suspense
+          fallback={
+            <main
+              style={{
+                padding: 32,
+                minHeight: "100dvh",
+                background: "#111112",
+                color: "#f3eee6",
+              }}
+            >
+              Ładowanie panelu…
+            </main>
+          }
+        >
+          <Routes>
+            <Route path="/admin/*" element={<Admin />} />
+          </Routes>
+        </Suspense>
+      </>
+    );
   return (
     <ShopProvider>
       <RouteEffects />
       <Shell />
+      {catalogError && (
+        <p
+          role="status"
+          className="shop-container fine-print"
+          style={{ paddingTop: 120 }}
+        >
+          Nie udało się odświeżyć menu. Ceny i dostępność zostaną sprawdzone
+          przy wysyłaniu zamówienia.
+        </p>
+      )}
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/menu" element={<MenuPage />} />

@@ -177,6 +177,11 @@ export function CartItems() {
             <div className="cart-item-copy">
               <Link to={`/menu/danie/${p.slug}`}>{p.name}</Link>
               <span>{money(p.priceGrosz)} / porcja</span>
+              {!p.available && (
+                <span className="field-error">
+                  Niedostępne — usuń z koszyka
+                </span>
+              )}
               <Quantity
                 value={line.quantity}
                 name={p.name}

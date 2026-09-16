@@ -22,3 +22,10 @@ playwright-report/
 credentials.json
 service-account*.json
 *service-account*.json
+.vercel
+.env*
+
+# Linked Supabase CLI cache must never be committed.
+supabase/.temp/
+# Keep the safe environment template trackable.
+!.env.example

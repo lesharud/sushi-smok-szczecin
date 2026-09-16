@@ -128,7 +128,10 @@ export function MenuDiscovery() {
     );
   }
   const filtered = products.filter((p) => p.categoryId === category);
-  const start = page * 2;
+  const start = Math.min(
+    page * 2,
+    Math.max(0, Math.floor((filtered.length - 1) / 2) * 2),
+  );
   const shown = filtered.slice(start, start + 2);
   const cat = categories.find((c) => c.id === category)!;
   return (
@@ -193,8 +196,8 @@ export function MenuDiscovery() {
         <div className="discovery-status">
           <h3>{cat.name}</h3>
           <span role="status">
-            {start + 1}–{Math.min(start + 2, filtered.length)} z{" "}
-            {filtered.length} pozycji
+            {filtered.length ? start + 1 : 0}–
+            {Math.min(start + 2, filtered.length)} z {filtered.length} pozycji
           </span>
           <div className="home-arrows">
             <button
@@ -223,7 +226,7 @@ export function MenuDiscovery() {
       </div>
       <div className="discovery-footer">
         <p>
-          Ceny według menu Wolt. Informacje o alergenach:{" "}
+          Aktualne ceny sprawdzamy przy zamówieniu. Informacje o alergenach:{" "}
           <a href={restaurant.phoneHref}>{restaurant.phone}</a>.
         </p>
         <Link className="text-link" to={`/menu/kategoria/${category}`}>
@@ -254,6 +257,7 @@ export function SharingSets() {
     const el = rail.current;
     if (!el || scrolling.current) return;
     const card = el.firstElementChild as HTMLElement;
+    if (!card) return;
     const gap = parseFloat(getComputedStyle(el).columnGap);
     const start = el.scrollLeft;
     const target = Math.max(
