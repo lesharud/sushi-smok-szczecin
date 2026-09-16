@@ -9,6 +9,7 @@ playwright-report/
 *.pem
 *.key
 .prerender/
+.server-test/
 *.tsbuildinfo
 .vercel/
 .netlify/

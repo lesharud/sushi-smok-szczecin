@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
-import { CartItems, EmptyState, DemoNotice } from "../shop/components";
+import { CartItems, EmptyState, OrderNotice } from "../shop/components";
 import { useShop } from "../shop/ShopProvider";
 import { money } from "../shop/catalog";
 export default function CartPage() {
@@ -44,7 +44,7 @@ export default function CartPage() {
               >
                 Przejdź do kasy <ArrowUpRight size={18} />
               </Link>
-              <DemoNotice />
+              <OrderNotice />
             </aside>
           </div>
         )}

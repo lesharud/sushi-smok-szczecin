@@ -27,14 +27,10 @@ export interface CartLine {
   quantity: number;
 }
 export interface Customer {
-  firstName: string;
-  lastName: string;
+  name: string;
   phone: string;
-  email: string;
 }
 export interface Address {
-  id: string;
-  label: string;
   street: string;
   building: string;
   apartment: string;
@@ -46,33 +42,25 @@ export interface CheckoutInput {
   fulfillment: "pickup" | "delivery";
   address: Address | null;
   notes: string;
-  preferredTime: string;
-  payment: "cash" | "card";
-  remember: boolean;
+  preferredTime: string | null;
 }
 export interface OrderItem {
   productId: string;
   name: string;
   quantity: number;
   unitPriceGrosz: number;
+  lineTotalGrosz: number;
   image: string | null;
 }
 export interface Order {
   id: string;
   number: string;
   createdAt: string;
-  status: "demo";
+  status:
+    "new" | "accepted" | "preparing" | "ready" | "delivered" | "cancelled";
   items: OrderItem[];
   subtotalGrosz: number;
-  deliveryFeeGrosz: number | null;
-  totalGrosz: number | null;
-  customer: Customer | null;
-  address: Address | null;
+  deliveryFeeGrosz: number;
+  totalGrosz: number;
   fulfillment: "pickup" | "delivery";
-  payment: "cash" | "card";
-  notes: string;
-  preferredTime: string;
-}
-export interface SavedProfile extends Customer {
-  addresses: Address[];
 }

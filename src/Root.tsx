@@ -8,18 +8,16 @@ import {
 import App from "./App";
 import Shell from "./shop/Shell";
 import { ShopProvider } from "./shop/ShopProvider";
-import { AuthProvider } from "./shop/auth";
 import { ShopFooter } from "./shop/components";
 import { MenuPage, ProductPage, NotFound } from "./pages/Menu";
 import CartPage from "./pages/Cart";
 import CheckoutPage, { SuccessPage } from "./pages/Checkout";
-import { AccountPage, AuthPage, OrdersPage } from "./pages/Account";
 import { products, categories } from "./shop/catalog";
 export function pageTitle(path: string) {
   if (path === "/") return "Sushi Smok — sushi z charakterem | Szczecin";
   const product = products.find((p) => path === `/menu/danie/${p.slug}`);
   const cat = categories.find((c) => path === `/menu/kategoria/${c.id}`);
-  return `${product?.name || cat?.name || { "/menu": "Menu", "/cart": "Koszyk", "/checkout": "Zamówienie testowe", "/account": "Twój profil", "/login": "Logowanie", "/register": "Rejestracja", "/account/orders": "Historia zamówień" }[path] || (path.startsWith("/order-success/") ? "Podsumowanie zamówienia" : "Nie znaleziono strony")} | Sushi Smok`;
+  return `${product?.name || cat?.name || { "/menu": "Menu", "/cart": "Koszyk", "/checkout": "Zamówienie" }[path] || (path.startsWith("/order-success/") ? "Podsumowanie zamówienia" : "Nie znaleziono strony")} | Sushi Smok`;
 }
 function RouteEffects() {
   const { pathname, hash, key } = useLocation();
@@ -82,28 +80,22 @@ export default function Root() {
   const { pathname } = useLocation();
   return (
     <ShopProvider>
-      <AuthProvider>
-        <RouteEffects />
-        <Shell />
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/menu" element={<MenuPage />} />
-          <Route path="/menu/kategoria/:category" element={<MenuPage />} />
-          <Route
-            path="/menu/danie/:slug"
-            element={<ProductPage key={pathname} />}
-          />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/order-success/:id" element={<SuccessPage />} />
-          <Route path="/login" element={<AuthPage />} />
-          <Route path="/register" element={<AuthPage register />} />
-          <Route path="/account" element={<AccountPage />} />
-          <Route path="/account/orders" element={<OrdersPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        {pathname !== "/" && <ShopFooter />}
-      </AuthProvider>
+      <RouteEffects />
+      <Shell />
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/menu" element={<MenuPage />} />
+        <Route path="/menu/kategoria/:category" element={<MenuPage />} />
+        <Route
+          path="/menu/danie/:slug"
+          element={<ProductPage key={pathname} />}
+        />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/order-success/:id" element={<SuccessPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      {pathname !== "/" && <ShopFooter />}
     </ShopProvider>
   );
 }

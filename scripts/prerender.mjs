@@ -92,16 +92,7 @@ const publicPaths = [
   ...catalog.categories.map((c) => `/menu/kategoria/${c.id}`),
   ...catalog.products.map((p) => `/menu/danie/${p.slug}`),
 ];
-const paths = [
-  ...publicPaths,
-  "/cart",
-  "/checkout",
-  "/account",
-  "/account/orders",
-  "/login",
-  "/register",
-  "/404",
-];
+const paths = [...publicPaths, "/cart", "/checkout", "/404"];
 const escape = (value) =>
   value
     .replaceAll("&", "&amp;")

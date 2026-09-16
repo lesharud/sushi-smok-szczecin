@@ -200,15 +200,15 @@ export function CartItems() {
     </ul>
   );
 }
-export function DemoNotice() {
+export function OrderNotice() {
   return (
     <aside className="demo-notice">
       <span className="status-dot" />
       <p>
-        <strong>Zamówienie testowe.</strong> Ten formularz nie wysyła zamówień
-        do restauracji i nie pobiera płatności. Aby zamówić naprawdę,{" "}
+        <strong>Zamów bez konta.</strong> Dostępność zamawiania sprawdzisz w
+        kasie. Możesz też{" "}
         <a href={restaurant.orderUrl} target="_blank" rel="noopener noreferrer">
-          przejdź do Wolt ↗
+          zamówić na Wolt ↗
         </a>
         .
       </p>

@@ -1,4 +1,4 @@
--- Optional foundation; not a live ordering backend. Run in your own Supabase project.
+-- Historical scaffold only. Do not apply for a new installation; use migrations/ instead.
 create table public.categories (
  id text primary key, name text not null, description text not null default '', sort_order integer not null default 0
 );

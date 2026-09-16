@@ -7,7 +7,7 @@ import {
   ProductImage,
   Quantity,
   EmptyState,
-  DemoNotice,
+  OrderNotice,
 } from "../shop/components";
 import { useShop } from "../shop/ShopProvider";
 import { restaurant } from "../data";
@@ -52,7 +52,7 @@ export function MenuPage() {
             Znajdź swój ulubiony zestaw.
           </p>
         </div>
-        <DemoNotice />
+        <OrderNotice />
         <div className="catalog-tools">
           <label className="menu-search">
             <Search size={20} />
@@ -170,8 +170,8 @@ export function ProductPage() {
               </button>
             </div>
             <p className="fine-print">
-              Podana cena pochodzi z menu Wolt. Zamówienia na tej stronie
-              działają w trybie testowym.
+              Podana cena pochodzi z menu Wolt. Aktualną cenę i dostępność
+              sprawdzamy podczas wysyłania zamówienia.
             </p>
           </div>
         </div>

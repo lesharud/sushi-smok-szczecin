@@ -27,8 +27,6 @@ export const highlights = [
   "party-set",
 ];
 export const orderSettings = {
-  mode: "demo" as const,
-  deliveryFeeGrosz: null as number | null,
   maxQuantity: 99,
   currency: "PLN",
 };

@@ -12,7 +12,6 @@ import {
   ArrowUpRight,
   Phone,
   Home,
-  UserRound,
   UtensilsCrossed,
 } from "lucide-react";
 import Dragon from "../Dragon";
@@ -181,10 +180,6 @@ export default function Shell() {
               <Dragon className="overlay-dragon" />
               <p className="eyebrow">MAŁE KAWAŁKI. WIELKI SMAK.</p>
               <OrderLink />
-              <Link className="text-link" to="/account">
-                <UserRound size={18} />
-                Twój profil <ArrowUpRight size={18} />
-              </Link>
               <a
                 className="text-link"
                 href={r.instagram}
@@ -251,7 +246,7 @@ export default function Shell() {
                   <span>Wartość dań</span>
                   <strong>{money(subtotal)}</strong>
                 </p>
-                <small>Koszt dostawy wymaga potwierdzenia. Tryb testowy.</small>
+                <small>Sposób odbioru wybierzesz w kolejnym kroku.</small>
                 <Link className="button button-primary" to="/checkout">
                   Przejdź do kasy <ArrowUpRight size={18} />
                 </Link>
@@ -289,14 +284,9 @@ export default function Shell() {
           </span>
           <span>Koszyk</span>
         </button>
-        <Link
-          to="/account"
-          aria-current={
-            location.pathname.startsWith("/account") ? "page" : undefined
-          }
-        >
-          <UserRound size={20} />
-          <span>Profil</span>
+        <Link to="/#kontakt">
+          <Phone size={20} />
+          <span>Kontakt</span>
         </Link>
       </nav>
       <div

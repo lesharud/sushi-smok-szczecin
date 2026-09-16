@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { guestApiFixture } from "./guest-api-fixture";
 async function addProduct(page: Page) {
   await page.goto("/menu/danie/filadelfia-z-lososiem");
   await page
@@ -9,9 +10,7 @@ async function addProduct(page: Page) {
 }
 async function fillCustomer(page: Page) {
   await page.getByLabel("Imię", { exact: true }).fill("Anna");
-  await page.getByLabel("Nazwisko", { exact: true }).fill("Kowalska");
   await page.getByLabel("Telefon", { exact: true }).fill("500600700");
-  await page.getByLabel("E-mail", { exact: true }).fill("anna@example.com");
 }
 test("catalog routes, search, real prices and product quantity", async ({
   page,
@@ -85,91 +84,6 @@ test("drawer focus, quantity, removal and empty checkout", async ({ page }) => {
     page.getByRole("button", { name: /Potwierdź zamówienie/ }),
   ).toHaveCount(0);
 });
-test("checkout validation, delivery and test receipt persist without personal data in history", async ({
-  page,
-}) => {
-  await addProduct(page);
-  await page.goto("/checkout");
-  await page
-    .getByRole("button", { name: "Potwierdź zamówienie testowe" })
-    .click();
-  await expect(page.locator("#firstName")).toBeFocused();
-  await expect(page.locator("#firstName-error")).toBeVisible();
-  await fillCustomer(page);
-  await page.getByRole("radio", { name: /Dostawa/ }).check();
-  await page
-    .getByRole("button", { name: "Potwierdź zamówienie testowe" })
-    .click();
-  await expect(page.locator("#street-error")).toBeVisible();
-  await page.getByLabel("Ulica", { exact: true }).fill("Testowa");
-  await page.getByLabel("Numer domu", { exact: true }).fill("10");
-  await page.getByLabel("Kod pocztowy", { exact: true }).fill("123");
-  await page
-    .getByRole("button", { name: "Potwierdź zamówienie testowe" })
-    .click();
-  await expect(page.locator("#postalCode-error")).toContainText("70-781");
-  await page.getByLabel("Kod pocztowy", { exact: true }).fill("70-781");
-  await page.getByLabel(/Rozumiem, że to zamówienie testowe/).check();
-  await page
-    .getByRole("button", { name: "Potwierdź zamówienie testowe" })
-    .click();
-  await expect(page).toHaveURL(/order-success\//);
-  await expect(page.locator("h1")).toContainText("To była próba.");
-  await expect(page.locator(".receipt")).toContainText("Anna Kowalska");
-  await expect(page.locator(".receipt")).toContainText(
-    "Koszt dostawy do potwierdzenia",
-  );
-  await page.reload();
-  await expect(page.locator(".receipt")).toContainText("Anna Kowalska");
-  const stored = await page.evaluate(() =>
-    localStorage.getItem("sushi-smok:orders:v1"),
-  );
-  expect(stored).not.toContain("anna@example.com");
-  expect(stored).not.toContain("Testowa");
-  await page.goto("/cart");
-  await expect(
-    page.getByRole("heading", { name: "Twój koszyk czeka na coś dobrego." }),
-  ).toBeVisible();
-  await page.goto("/account/orders");
-  await expect(page.locator(".order-history>a")).toHaveCount(1);
-});
-test("pickup, remember profile, addresses edit/delete and honest account availability", async ({
-  page,
-}) => {
-  await addProduct(page);
-  await page.goto("/checkout");
-  await fillCustomer(page);
-  await page.getByLabel(/Zapisz moje dane i adres/).check();
-  await page.getByLabel(/Rozumiem, że to zamówienie testowe/).check();
-  await page
-    .getByRole("button", { name: "Potwierdź zamówienie testowe" })
-    .click();
-  await expect(page).toHaveURL(/order-success/);
-  await expect(page.locator(".receipt")).toContainText("Odbiór osobisty");
-  await page.goto("/account");
-  await expect(page.getByLabel("Imię", { exact: true })).toHaveValue("Anna");
-  await page.getByRole("button", { name: "Dodaj adres" }).click();
-  await page.getByLabel("Nazwa adresu").fill("Biuro");
-  await page.getByLabel("Ulica", { exact: true }).fill("Testowa");
-  await page.getByLabel("Numer domu", { exact: true }).fill("7");
-  await page.getByLabel("Kod pocztowy").fill("70-781");
-  await page.getByRole("button", { name: "Zapisz adres", exact: true }).click();
-  await expect(page.locator(".address-list")).toContainText("Biuro");
-  await page.getByRole("button", { name: "Edytuj", exact: true }).click();
-  await page.getByLabel("Numer domu", { exact: true }).fill("8");
-  await page.getByRole("button", { name: "Zapisz adres", exact: true }).click();
-  await expect(page.locator(".address-list")).toContainText("Testowa 8");
-  await page.getByRole("button", { name: "Usuń adres: Biuro" }).click();
-  await expect(page.locator(".address-list article")).toHaveCount(0);
-  await page.goto("/login");
-  await expect(
-    page.getByRole("heading", { name: "Konta już wkrótce." }),
-  ).toBeVisible();
-  await page.goto("/register");
-  await expect(
-    page.getByRole("heading", { name: "Konta już wkrótce." }),
-  ).toBeVisible();
-});
 test("corrupt cart storage is rejected, unknown routes have a recovery path", async ({
   page,
 }) => {
@@ -207,7 +121,6 @@ test("responsive shop pages, image loading and accessibility", async ({
       "/menu/danie/filadelfia-z-lososiem",
       "/cart",
       "/checkout",
-      "/account",
     ]) {
       await page.goto(route);
       await expect(page.locator("h1")).toBeVisible();
@@ -247,7 +160,6 @@ test("responsive shop pages, image loading and accessibility", async ({
     "/menu",
     "/menu/danie/filadelfia-z-lososiem",
     "/checkout",
-    "/account",
   ]) {
     await page.goto(route);
     const scan = await new AxeBuilder({ page })
@@ -269,6 +181,7 @@ test("mobile touch order flow and always available actions", async ({
     locale: "pl-PL",
   });
   const page = await context.newPage();
+  await guestApiFixture(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/menu/danie/filadelfia-z-lososiem");
   const add = page
@@ -290,10 +203,7 @@ test("mobile touch order flow and always available actions", async ({
   await sheet.getByRole("link", { name: "Przejdź do kasy" }).tap();
   await expect(page).toHaveURL(/checkout$/);
   await fillCustomer(page);
-  await page.getByLabel(/Rozumiem, że to zamówienie testowe/).check();
-  await page
-    .getByRole("button", { name: "Potwierdź zamówienie testowe" })
-    .tap();
+  await page.getByRole("button", { name: "Potwierdź zamówienie" }).tap();
   await expect(page).toHaveURL(/order-success/);
   await expect(page.locator(".receipt")).toContainText(/74\s*zł/);
   await page.screenshot({

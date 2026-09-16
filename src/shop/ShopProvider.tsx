@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { productById, orderSettings } from "./catalog";
-import { readJson, writeJson } from "./storage";
+import { readJson, writeJson, removeStored } from "./storage";
 import type { CartLine } from "./types";
 const KEY = "sushi-smok:cart:v1";
 function clean(value: unknown): CartLine[] {
@@ -38,6 +38,7 @@ interface ShopContext {
   change: (id: string, quantity: number) => void;
   remove: (id: string) => void;
   clear: () => void;
+  complete: (submitted: CartLine[]) => void;
   notify: (message: string) => void;
   toast: string;
 }
@@ -49,6 +50,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState("");
   const notify = useCallback((message: string) => setToast(message), []);
   useEffect(() => {
+    removeStored("sushi-smok:profile:v1");
+    removeStored("sushi-smok:orders:v1");
+    removeStored("sushi-smok:last-order:v1", true);
     setLines(clean(readJson(KEY, [])));
     setReady(true);
     const listener = (event: StorageEvent) => {
@@ -119,6 +123,18 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         remove: (id) =>
           setLines((old) => old.filter((x) => x.productId !== id)),
         clear: () => setLines([]),
+        complete: (submitted) =>
+          setLines((old) =>
+            old
+              .map((line) => ({
+                ...line,
+                quantity:
+                  line.quantity -
+                  (submitted.find((item) => item.productId === line.productId)
+                    ?.quantity || 0),
+              }))
+              .filter((line) => line.quantity > 0),
+          ),
         notify,
         toast,
       }}

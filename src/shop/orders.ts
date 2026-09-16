@@ -1,174 +1,175 @@
-import { productById, orderSettings } from "./catalog";
 import { readJson, writeJson, removeStored } from "./storage";
-import type {
-  CartLine,
-  CheckoutInput,
-  Order,
-  OrderItem,
-  SavedProfile,
-} from "./types";
-export const PROFILE_KEY = "sushi-smok:profile:v1";
-const ORDERS_KEY = "sushi-smok:orders:v1";
-const SESSION_KEY = "sushi-smok:last-order:v1";
-const memoryOrders = new Map<string, Order>();
-export const blankProfile: SavedProfile = {
-  firstName: "",
-  lastName: "",
-  phone: "",
-  email: "",
-  addresses: [],
+import type { CartLine, CheckoutInput, Order } from "./types";
+
+const PENDING_KEY = "sushi-smok:checkout-attempt:v2";
+const RECEIPT_KEY = "sushi-smok:receipt:v2";
+type Attempt = {
+  key: string;
+  token: string;
+  request: CheckoutInput & { items: CartLine[] };
+  createdAt: number;
 };
-export function readProfile(): SavedProfile {
-  const value = readJson<unknown>(PROFILE_KEY, null);
-  if (!value || typeof value !== "object") return blankProfile;
-  const p = value as SavedProfile;
+let pendingMemory: Attempt | null = null;
+let receiptMemory: { key: string; token: string } | null = null;
+export class OrderError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public uncertain = false,
+  ) {
+    super(message);
+  }
+}
+export function pendingAttempt(): Attempt | null {
+  const value =
+    pendingMemory || readJson<Attempt | null>(PENDING_KEY, null, true);
   if (
-    ![p.firstName, p.lastName, p.phone, p.email].every(
-      (v) => typeof v === "string",
-    ) ||
-    !Array.isArray(p.addresses)
+    !value ||
+    typeof value.key !== "string" ||
+    typeof value.token !== "string" ||
+    !value.request?.customer ||
+    !Array.isArray(value.request.items)
   )
-    return blankProfile;
-  return {
-    ...p,
-    addresses: p.addresses.filter(
-      (a) =>
-        a &&
-        [
-          a.id,
-          a.label,
-          a.street,
-          a.building,
-          a.apartment,
-          a.postalCode,
-          a.city,
-        ].every((v) => typeof v === "string"),
-    ),
+    return null;
+  return value;
+}
+function receiptCredentials(key: string) {
+  const pending = pendingAttempt();
+  const receipt =
+    receiptMemory ||
+    readJson<{ key: string; token: string } | null>(RECEIPT_KEY, null, true);
+  return pending?.key === key ? pending : receipt?.key === key ? receipt : null;
+}
+async function api(path: string, init: RequestInit) {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      ...init,
+      signal: AbortSignal.timeout(20000),
+      cache: "no-store",
+    });
+  } catch {
+    throw new OrderError(
+      "Nie udało się sprawdzić wyniku wysyłki. Ponów próbę — ten sam numer próby chroni przed podwójnym zamówieniem.",
+      "NETWORK_ERROR",
+      true,
+    );
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new OrderError(
+      "Serwer zamówień jest chwilowo niedostępny. Spróbuj ponownie.",
+      "SERVER_ERROR",
+      true,
+    );
+  }
+  if (!response.ok)
+    throw new OrderError(
+      data.error?.message ||
+        "Nie udało się zapisać zamówienia. Spróbuj ponownie.",
+      data.error?.code || "SERVER_ERROR",
+      response.status >= 500 || response.status === 408,
+    );
+  return data;
+}
+export async function orderSettings() {
+  return (await api("/api/order-settings", {})) as {
+    orderingEnabled: boolean;
+    deliveryEnabled: boolean;
+    deliveryFeeGrosz: number | null;
   };
 }
-export function listLocalOrders(): Order[] {
-  const value = readJson<unknown>(ORDERS_KEY, []);
-  if (!Array.isArray(value)) return [];
-  return value.filter(
-    (x): x is Order =>
-      !!x &&
-      typeof x.id === "string" &&
-      typeof x.number === "string" &&
-      x.status === "demo" &&
-      Array.isArray(x.items) &&
-      x.items.every(
-        (i: OrderItem) =>
-          i &&
-          typeof i.name === "string" &&
-          Number.isSafeInteger(i.quantity) &&
-          Number.isSafeInteger(i.unitPriceGrosz),
-      ) &&
-      Number.isSafeInteger(x.subtotalGrosz),
-  );
+export async function getOrder(key: string): Promise<Order> {
+  const credentials = receiptCredentials(key);
+  if (!credentials)
+    throw new OrderError(
+      "To potwierdzenie jest dostępne tylko w przeglądarce, w której wysłano zamówienie.",
+      "NOT_FOUND",
+    );
+  const data = await api("/api/order-receipt", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": key,
+      "X-Receipt-Token": credentials.token,
+    },
+    body: "{}",
+  });
+  return data.order;
 }
-export function getLocalOrder(id: string): Order | undefined {
-  const session = readJson<Order | null>(SESSION_KEY, null, true);
-  return (
-    memoryOrders.get(id) ||
-    (session?.id === id ? session : listLocalOrders().find((o) => o.id === id))
-  );
+export function finishAttempt() {
+  const attempt = pendingAttempt();
+  if (attempt) {
+    receiptMemory = { key: attempt.key, token: attempt.token };
+    writeJson(RECEIPT_KEY, receiptMemory, true);
+  }
+  pendingMemory = null;
+  removeStored(PENDING_KEY, true);
 }
-export function clearLocalOrders() {
-  memoryOrders.clear();
-  removeStored(ORDERS_KEY);
-  removeStored(SESSION_KEY, true);
-}
-export interface OrderRepository {
-  submit(
+export const orderRepository = {
+  async submit(
     lines: CartLine[],
     input: CheckoutInput,
-    idempotencyKey: string,
-  ): Promise<Order>;
-}
-/** Demo adapter only. A live adapter MUST re-price and validate stock/fees on the server. */
-export const orderRepository: OrderRepository = {
-  async submit(lines, input, idempotencyKey) {
-    const existing = getLocalOrder(idempotencyKey);
-    if (existing) return existing;
-    if (!lines.length) throw new Error("Koszyk jest pusty.");
-    if (
-      !Object.values(input.customer).every(
-        (value) => typeof value === "string" && value.trim(),
-      ) ||
-      (input.fulfillment === "delivery" &&
-        (!input.address ||
-          ![
-            input.address.street,
-            input.address.building,
-            input.address.postalCode,
-            input.address.city,
-          ].every((value) => value.trim())))
-    )
-      throw new Error("Uzupełnij dane zamówienia.");
-    const items = lines.map((line) => {
-      const p = productById.get(line.productId);
-      if (
-        !p ||
-        !p.available ||
-        !Number.isInteger(line.quantity) ||
-        line.quantity < 1 ||
-        line.quantity > 99
-      )
-        throw new Error(
-          "Zawartość koszyka uległa zmianie. Sprawdź wybrane dania.",
-        );
-      return {
-        productId: p.id,
-        name: p.name,
-        quantity: line.quantity,
-        unitPriceGrosz: p.priceGrosz,
-        image: p.image,
+  ): Promise<{ order: Order; key: string; submitted: CartLine[] }> {
+    let attempt = pendingAttempt();
+    if (!attempt) {
+      const token = [...crypto.getRandomValues(new Uint8Array(32))]
+        .map((n) => n.toString(16).padStart(2, "0"))
+        .join("");
+      attempt = {
+        key: crypto.randomUUID(),
+        token,
+        request: {
+          ...input,
+          items: lines.map(({ productId, quantity }) => ({
+            productId,
+            quantity,
+          })),
+        },
+        createdAt: Date.now(),
       };
-    });
-    const subtotal = items.reduce(
-      (sum, item) => sum + item.unitPriceGrosz * item.quantity,
-      0,
-    );
-    const fee =
-      input.fulfillment === "pickup" ? 0 : orderSettings.deliveryFeeGrosz;
-    const order: Order = {
-      id: idempotencyKey,
-      number: `TEST-${idempotencyKey.slice(0, 8).toUpperCase()}`,
-      createdAt: new Date().toISOString(),
-      status: "demo",
-      items,
-      subtotalGrosz: subtotal,
-      deliveryFeeGrosz: fee,
-      totalGrosz: fee === null ? null : subtotal + fee,
-      customer: input.customer,
-      address: input.fulfillment === "delivery" ? input.address : null,
-      fulfillment: input.fulfillment,
-      payment: input.payment,
-      notes: input.notes,
-      preferredTime: input.preferredTime,
-    };
-    memoryOrders.set(order.id, order);
-    writeJson(SESSION_KEY, order, true);
-    // Persist only an anonymous receipt unless the customer explicitly opts in.
-    const historyOrder = input.remember
-      ? order
-      : { ...order, customer: null, address: null, notes: "" };
-    writeJson(ORDERS_KEY, [historyOrder, ...listLocalOrders()].slice(0, 50));
-    if (input.remember) {
-      const previous = readProfile();
-      const addresses =
-        input.address && input.fulfillment === "delivery"
-          ? [
-              input.address,
-              ...previous.addresses.filter(
-                (a) =>
-                  a.street !== input.address!.street ||
-                  a.building !== input.address!.building,
-              ),
-            ].slice(0, 5)
-          : previous.addresses;
-      writeJson(PROFILE_KEY, { ...input.customer, addresses });
+      pendingMemory = attempt;
+      // Only an in-flight request is retained for retry/reload, never a simulated order or account history.
+      writeJson(PENDING_KEY, attempt, true);
     }
-    return order;
+    try {
+      const data = await api("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": attempt.key,
+          "X-Receipt-Token": attempt.token,
+        },
+        body: JSON.stringify(attempt.request),
+      });
+      if (
+        !data.order?.number ||
+        !data.order?.id ||
+        !Array.isArray(data.order.items)
+      )
+        throw new OrderError(
+          "Nie udało się odczytać potwierdzenia. Ponów próbę.",
+          "SERVER_ERROR",
+          true,
+        );
+      finishAttempt();
+      return {
+        order: data.order,
+        key: attempt.key,
+        submitted: attempt.request.items,
+      };
+    } catch (error) {
+      if (
+        error instanceof OrderError &&
+        !error.uncertain &&
+        error.code !== "IDEMPOTENCY_CONFLICT"
+      ) {
+        pendingMemory = null;
+        removeStored(PENDING_KEY, true);
+      }
+      throw error;
+    }
   },
 };
