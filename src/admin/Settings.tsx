@@ -3,6 +3,7 @@ import { adminClient as db, errorText } from "./client";
 import { useResource } from "./useResource";
 import type { Settings as SettingsData } from "./types";
 import { parsePrice } from "./Menu";
+import Notifications from "./Notifications";
 export default function Settings() {
   const [saved, setSaved] = useState(false);
   const resource = useResource(
@@ -54,6 +55,7 @@ export default function Settings() {
       ) : (
         !resource.error && <p role="status">Ładowanie ustawień…</p>
       )}
+      <Notifications />
     </>
   );
 }

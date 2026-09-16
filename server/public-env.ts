@@ -11,7 +11,9 @@ export function assertPublicEnv(env: Record<string, string | undefined>) {
       /* Not a legacy JWT. */
     }
     if (
-      /SECRET|SERVICE_ROLE|PRIVATE_KEY|PASSWORD/.test(name) ||
+      /SECRET|SERVICE_ROLE|PRIVATE_KEY|PASSWORD|TOKEN|TELEGRAM|SMS/.test(
+        name,
+      ) ||
       value.trim().startsWith("sb_secret_") ||
       role === "service_role"
     )

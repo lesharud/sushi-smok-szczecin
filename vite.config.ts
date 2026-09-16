@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => {
     "SUPABASE_URL",
     "SUPABASE_SECRET_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "NOTIFICATION_WORKER_SECRET",
+    "SITE_URL",
   ]) {
     if (!process.env[name] && env[name]) process.env[name] = env[name];
   }

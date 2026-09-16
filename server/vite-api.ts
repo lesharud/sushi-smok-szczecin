@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { handle } from "./orders.js";
 import { catalog } from "./catalog.js";
+import { notifications } from "./notifications/api.js";
 
 async function middleware(
   req: IncomingMessage,
@@ -15,7 +16,14 @@ async function middleware(
     "/api/order-receipt": "receipt",
     "/api/order-settings": "settings",
   }[path] as "create" | "receipt" | "settings" | undefined;
-  if (!action && path !== "/api/catalog") {
+  if (
+    !action &&
+    ![
+      "/api/catalog",
+      "/api/notifications",
+      "/api/notification-worker",
+    ].includes(path)
+  ) {
     res.writeHead(404, { "Content-Type": "application/json" });
     res.end('{"error":{"code":"NOT_FOUND"}}');
     return;
@@ -40,13 +48,15 @@ async function middleware(
       method: req.method,
       headers,
       ...(req.method !== "GET" && req.method !== "HEAD"
-        ? { body: Buffer.concat(chunks) }
+        ? { body: chunks.length ? Buffer.concat(chunks) : undefined }
         : {}),
     });
     const response =
-      path === "/api/catalog"
-        ? await catalog(request)
-        : await handle(request, action!);
+      path === "/api/notifications" || path === "/api/notification-worker"
+        ? await notifications(request)
+        : path === "/api/catalog"
+          ? await catalog(request)
+          : await handle(request, action!);
     response.headers.forEach((value, name) => res.setHeader(name, value));
     res.statusCode = response.status;
     res.end(Buffer.from(await response.arrayBuffer()));

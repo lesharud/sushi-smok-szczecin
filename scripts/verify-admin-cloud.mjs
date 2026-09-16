@@ -32,6 +32,7 @@ const check = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 const marker = "TEST — NIE PRZYGOTOWYWAĆ. ADMIN QA " + randomUUID();
+let notificationQA;
 try {
   check(
     env.SUPABASE_URL &&
@@ -50,6 +51,13 @@ try {
     env.VITE_SUPABASE_PUBLISHABLE_KEY,
     options,
   );
+  if (env.VERIFY_NOTIFICATIONS === "true") {
+    const { notificationChecks } =
+      await import("./verify-notifications-cloud.mjs");
+    notificationQA = notificationChecks({ env, service, base, check });
+    stage = "telegram-configuration";
+    await notificationQA.config();
+  }
   stage = "existing-user";
   const users = await service.auth.admin.listUsers({ page: 1, perPage: 10 });
   check(
@@ -152,6 +160,10 @@ try {
     else await page.getByLabel("Przyjmuj zamówienia online").waitFor();
     check((await page.getByRole("alert").count()) === 0, "Admin view error");
   }
+  if (notificationQA) {
+    stage = "telegram-admin-test-retry";
+    await notificationQA.test(page);
+  }
   await page.goto(base + "/admin/kitchen");
   await page
     .getByRole("heading", { name: "Na bieżąco.", exact: true })
@@ -235,6 +247,10 @@ try {
         item.line_total_grosz === p.price_grosz * (i + 1),
       "Snapshot mismatch",
     );
+  }
+  if (notificationQA) {
+    stage = "telegram-order-delivery";
+    await notificationQA.order(testOrderId, stored.data.number);
   }
   stage = "kitchen-auto-update";
   const card = page.locator(".admin-order").filter({

@@ -180,3 +180,50 @@ test("expired session returns to login; revoked membership removes order data", 
     timeout: 15000,
   });
 });
+
+test("notifications show configuration and queued test result without exposing keys", async ({
+  page,
+}) => {
+  await adminFixture(page);
+  let sent = false,
+    configured = false;
+  await page.route("**/api/notifications", (route) => {
+    if (route.request().method() === "POST") {
+      sent = true;
+      return route.fulfill({ status: 202, json: { id: "test-job" } });
+    }
+    return route.fulfill({
+      json: {
+        telegram: { configured },
+        sms: { configured: false },
+        lastWorkerRun: new Date().toISOString(),
+        recent: sent
+          ? [
+              {
+                id: "test-job",
+                event: "test",
+                status: "sent",
+                attempts: 1,
+                last_code: "DELIVERED",
+                created_at: new Date().toISOString(),
+                sent_at: new Date().toISOString(),
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  await login(page);
+  await page.getByRole("link", { name: "Ustawienia", exact: true }).click();
+  const section = page.getByRole("region", { name: "Powiadomienia" });
+  await expect(
+    section.getByRole("button", { name: "Wyślij test Telegram" }),
+  ).toBeDisabled();
+  configured = true;
+  await expect(
+    section.getByRole("button", { name: "Wyślij test Telegram" }),
+  ).toBeEnabled({ timeout: 12000 });
+  await section.getByRole("button", { name: "Wyślij test Telegram" }).click();
+  await expect(section.getByRole("status")).toContainText("Wysłano pomyślnie");
+  await expect(section).toContainText("SMS: Nie skonfigurowano");
+});

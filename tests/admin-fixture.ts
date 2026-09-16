@@ -28,6 +28,16 @@ export async function adminFixture(
       updated_at: "2026-09-16T10:00:00Z",
     },
   };
+  await page.route("**/api/notifications", (route) =>
+    route.fulfill({
+      json: {
+        telegram: { configured: false },
+        sms: { configured: false },
+        lastWorkerRun: null,
+        recent: [],
+      },
+    }),
+  );
   const user = {
     id: userId,
     aud: "authenticated",

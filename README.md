@@ -62,3 +62,7 @@ SQL integration tests: `npm run test:database` — только отдельны
 ## Restaurant Admin / Kitchen — Этап 2
 
 Локальная реализация, настройка ролей, миграция и создание первого Admin описаны в [ADMIN.md](ADMIN.md). Перед публикацией нужно применить новую миграцию, создать сотрудника и добавить публичные ENV для Supabase Auth. Guest Checkout остаётся без аккаунтов.
+
+## Stage 3: уведомления
+
+Архитектура очереди, Telegram, отключённый SMS, настройка и публикация: [NOTIFICATIONS.md](NOTIFICATIONS.md).
